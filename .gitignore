@@ -1,0 +1,42 @@
+### Python
+*.pyc
+*.pyo
+
+### OS generated files
+.DS_Store
+
+### C extensions
+*.so
+
+### Cluster logs
+*.log
+
+### Distribution / packaging
+build/
+pyMappingAfrica.egg-info/
+dist/
+
+### R
+.Rhistory
+.RData
+
+### Jupyter
+.ipynb_checkpoints
+
+#Results
+results
+
+
+### My stuff
+junk
+code_original
+image_database
+image_database.zip
+*.hdf
+
+run_it/metastore_db/
+pyMappingAfrica/metastore_db
+
+pyMappingAfrica/\#*#
+run_it/\#*#
+.Rproj.user
