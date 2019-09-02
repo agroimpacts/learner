@@ -467,7 +467,7 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
 
     Required external inputs:
         <s3_bucket>/cvmapper_config.yaml
-            under ``cvml`` key:
+            under ``learner`` key:
                     prefix: The S3 prefix under which CSVs can be read and written
                     pool: Name of CSV file under s3_bucket/prefix giving the
                         comprehensive list of active grid cells
@@ -520,7 +520,7 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
         details of the layout.
 
     """
-    params = parse_yaml_from_s3(s3_bucket, config_filename)['cvml']
+    params = parse_yaml_from_s3(s3_bucket, config_filename)['learner']
 
     s3_prefix = params['prefix']
     s3_prefix = s3_prefix[0:-1] if s3_prefix.endswith('/') else s3_prefix
@@ -790,7 +790,7 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
 def main(config_filename, probability_images, random_seed, output_all_images, bucket, run, aoi):
     start_time = time.time()
     conf = gps\
-           .geopyspark_conf(appName="CVML Model Iteration", master="yarn") \
+           .geopyspark_conf(appName="Learner Model Iteration", master="yarn") \
            .set("spark.dynamicAllocation.enabled", True) \
            .set("spark.ui.enabled", True) \
            .set("spark.hadoop.yarn.timeline-service.enabled", False)
