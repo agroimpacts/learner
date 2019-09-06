@@ -14,10 +14,10 @@ def parse_yaml_from_s3(bucket, prefix):
 
 
 def get_current_iteration(params):
-    incoming_s3_path = os.path.join("s3://" + params['cvml']['bucket'],
-                                    params['cvml']['prefix'], params['cvml']['incoming_names'])
+    incoming_s3_path = os.path.join("s3://" + params['learner']['bucket'],
+                                    params['learner']['prefix'], params['learner']['incoming_names'])
     incoming_names = pd.read_csv(incoming_s3_path)
-    current_iteration = max(list(incoming_names['iteration'][incoming_names['run'] == params['cvml']['runid']])) + 1
+    current_iteration = max(list(incoming_names['iteration'][incoming_names['run'] == params['learner']['runid']])) + 1
     return int(current_iteration)
 
 
@@ -26,12 +26,12 @@ def insert_metrics(params):
     and insert into table (therefore var is "outgoing").
     This step must occur before insert_names due to validity constraints"""
 
-    outgoing_metrics_path = os.path.join("s3://" + params['cvml']['bucket'],
-                                         params['cvml']['prefix'], params['cvml']['metrics'])
+    outgoing_metrics_path = os.path.join("s3://" + params['learner']['bucket'],
+                                         params['learner']['prefix'], params['learner']['metrics'])
     outgoing_metrics = pd.read_csv(outgoing_metrics_path)
     # Connect
-    con = psycopg2.connect(host=params["mapper"]["db_host"], database=params["mapper"]["db_production_name"],
-                           user=params["mapper"]["db_username"], password=params["mapper"]["db_password"])
+    con = psycopg2.connect(host=params["labeller"]["db_host"], database=params["labeller"]["db_production_name"],
+                           user=params["labeller"]["db_username"], password=params["labeller"]["db_password"])
     curs = con.cursor()
     print('cursor made')
 
@@ -41,11 +41,11 @@ def insert_metrics(params):
                        "(run, iteration, tss, accuracy, aoi, iteration_time, precision, " \
                        "recall, fpr, tpr, auc) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s); "
         outgoing_metrics = outgoing_metrics[outgoing_metrics['iteration'] == get_current_iteration(params)]
-        outgoing_metrics = outgoing_metrics[outgoing_metrics['run'] == params['cvml']['runid']]
+        outgoing_metrics = outgoing_metrics[outgoing_metrics['run'] == params['learner']['runid']]
         # this is needed for multiple runs for multiple aois. incoming_names.csv will need an aoi column and its
         # corresponding table will need to have a aoi column that is a key like run and iteration
         # or we have a different incoming_names.csv for each aoi
-        # outgoing_metrics = outgoing_metrics[outgoing_metrics['run']==params['cvml']['aoiid']]
+        # outgoing_metrics = outgoing_metrics[outgoing_metrics['run']==params['learner']['aoiid']]
         outgoing_metrics = outgoing_metrics.reindex(
             columns=["run", "iteration", "tss", "accuracy", "aoi", "iteration_time", "precision", "recall", "fpr",
                      "tpr", "AUC"])
@@ -69,17 +69,17 @@ def insert_names(params):
     """Put top uncertain grid names in incoming_names table.
     from https://github.com/agroimpacts/mapperAL/blob/lsong/common/dummy_cvml.py"""
 
-    outgoing_names_df = pd.read_csv(params['cvml']['outgoing'])
+    outgoing_names_df = pd.read_csv(params['learner']['outgoing'])
     if len(outgoing_names_df) > 0:
-        con = psycopg2.connect(host=params["mapper"]["db_host"], database=params["mapper"]["db_production_name"],
-                               user=params["mapper"]["db_username"], password=params["mapper"]["db_password"])
+        con = psycopg2.connect(host=params["labeller"]["db_host"], database=params["labeller"]["db_production_name"],
+                               user=params["labeller"]["db_username"], password=params["labeller"]["db_password"])
         print('done connecting')
         curs = con.cursor()
 
         # Update the incoming_names table
         try:
             outgoing_names_df = outgoing_names_df[outgoing_names_df['iteration'] == get_current_iteration(params)]
-            outgoing_names_df = outgoing_names_df[outgoing_names_df['run'] == params['cvml']['runid']]
+            outgoing_names_df = outgoing_names_df[outgoing_names_df['run'] == params['learner']['runid']]
             for index, row in outgoing_names_df.iterrows():
                 row = list(row)
                 insert_query = "insert into incoming_names (name, run, iteration, processed, usage) " \
