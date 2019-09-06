@@ -415,7 +415,7 @@ def ml_pipeline(feature_names, label_column, output_column='features'):
     classifier = RandomForestClassifier(labelCol=label_column, featuresCol=assembler.getOutputCol())\
                  .setSubsamplingRate(0.5)\
                  .setMaxDepth(16)\
-                 .setNumTrees(30)
+                 .setNumTrees(100)
                  # .setMaxDepth(10)\
                  # .setNumTrees(100)\
 
