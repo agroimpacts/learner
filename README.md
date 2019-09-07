@@ -1,19 +1,10 @@
-# `cvml`
+# `learner`
 This repository contains the machine learning component of the Mapping Africa active learning system. It is composed of two scripts, each of which is automatically run as an Elastic Map Reduce (EMR) step on an EMR cluster. This simply means that each script is run automatically after the cluster is done being created. Scripts used to create the cluster are contained within the terraform folder of the mapper repository (the terraform folder in this repo is a present for convinience and will eventually be removed).
 
-## Testing `cvml`
+**Note: this readme is in need of an update**
 
-1. To work on new features in cvml, branch off the tip of the devel branch and name the new feature like so `feature/cool-new-feature` 
- * go to mapperAL's `testing-noDBinsert` branch, to the emr.tf file, and edit the Clone CVML step so that the correct branch is cloned to the cluster. it is currently set to `devel` like so: `["git", "clone", "--depth", "1", "-b", "devel", "https://XXXXXXX:XXXXXXX@github.com/agroimpacts/cvmlAL.git", "/home/hadoop/cvmlAL"]` 
-2. Then, spin up a cluster from mapperAL's `testing-noDBinsert` branch or `testing-noststeps` branch (this keeps names and metrics from single iteration test runs from populating our testing database where they are not needed)
-3. Check emr.tf on mapper to make sure that in the Clone CVML step, the correct branch is being cloned to the cluster
-4. Navigate to the EMR console's Summary tab and copy the Master public DNS. It should look like this: ec2-XX-XXX-XX-XX.compute-X.amazonaws.com
-5. Paste this link in a new tab of the browser and append `:8000`. the notebook server you will navigate to will then be `ec2-54-173-13-57.compute-1.amazonaws.com:8000`
-6. Enter the username and password to the notebook server. Ask Ryan for this.
-7. You can now start and name new notebooks. Copy over the sections of `run_geopyspark.py` that you need to test your new feature. When it works in a notebook you can copy what works back to run_geopyspark.py on your local and commit and push your changes to the new branch. Notebooks are saved at `s3://buckets/azavea-africa-test/notebooks/` feel free to download and version your notebook with github in your branch if you want.  
-
-## Profiling `cvml`
-Profiling is an important part of understanding how quickly a program runs and what steps take the most time, as well as debugging errors. In AWS, this is done mainly with two online tools, Ganglia - for examining hardware utilization - and the Resource Manager - for examining logs and durations of Spark tasks (seperate steps of the CVML program). Setting yourself up to examine the cluster as it runs involves three steps.
+## Profiling `learner`
+Profiling is an important part of understanding how quickly a program runs and what steps take the most time, as well as debugging errors. In AWS, this is done mainly with two online tools, Ganglia - for examining hardware utilization - and the Resource Manager - for examining logs and durations of Spark tasks (seperate steps of the `learner` program). Setting yourself up to examine the cluster as it runs involves three steps.
 
 1. Setting up FoxyProxy - allowing your browser to access the 2 online tools
     - Get FoxyProxy Standard for Chrome. It is free: https://chrome.google.com/webstore/search/foxy%20proxy
@@ -26,8 +17,8 @@ Profiling is an important part of understanding how quickly a program runs and w
 6. Clicking the Resource Manager will take you to a table, look to the lower right of the table for "Tracking UI" and "ApplicationMaster", click "ApplicationMaster" and you will be taken to the Spark Tracking UI
 * the ssh tunnel will keep running until you close it with CNTRL+C
 
-## Guide to profiling `cvml` (in the works)
-The two important tabs of the Resource Manager's Tracking UI are Jobs and Stages. The Jobs tab has shows completed stages which is a rough way to gauge where the program is at across all executors. The steps below pertain to how to profile specific parts of the CVML code across all executors. Can hopefully be used to show how long training time and testing time take seperately.
+## Guide to profiling `learner` (in the works)
+The two important tabs of the Resource Manager's Tracking UI are Jobs and Stages. The Jobs tab has shows completed stages which is a rough way to gauge where the program is at across all executors. The steps below pertain to how to profile specific parts of the `learner` code across all executors. Can hopefully be used to show how long training time and testing time take seperately.
 
 ### Viewing Spark master logs
 1. First navigate to the EMR console for your cluster
@@ -39,7 +30,7 @@ The two important tabs of the Resource Manager's Tracking UI are Jobs and Stages
 
 
 ## run_it/run_geopyspark.py
-This script runs a single iteration of the model and deposits metrics and uncertain names on s3. It is run after the EMR step that copies over the cvmlAL scripts is complete. It parses the master config file on s3 as well as command line arguments that are supplied via the call of the EMR step. This EMR step is constructed in the mapper repo's terraform folder in the emr.tf file. Each of these (the EMR step and config file) should be checked and edited before a given model run. Command line options may be specified to output probability images, the whole probability map, to set the runid and descriptive AOI string associated with a given model run, and a random seed.
+This script runs a single iteration of the model and deposits metrics and uncertain names on s3. It is run after the EMR step that copies over the `learner` scripts is complete. It parses the master config file on s3 as well as command line arguments that are supplied via the call of the EMR step. This EMR step is constructed in the mapper repo's terraform folder in the emr.tf file. Each of these (the EMR step and config file) should be checked and edited before a given model run. Command line options may be specified to output probability images, the whole probability map, to set the runid and descriptive AOI string associated with a given model run, and a random seed.
 
 The following are descriptive note to supplement understanding of the functions in this file. Be sure to also read the docstrings and code. 
 
