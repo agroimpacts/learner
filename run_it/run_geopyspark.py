@@ -335,7 +335,7 @@ def build_feature_frame(uri_frame, season, metadata, resampling=rwarp.Resampling
     result = frame.select(['spatial_key'] +
                           [erodePixels(c, 5).alias(remap(c, 'raw')) for c in columns] +
                           [localNbhdOp(c, 11, 'mean').alias(remap(c, 'avg11')) for c in columns] +
-                          [localNbhdOp(c, 11, 'stddev').alias(remap(c, 'std11')) for c in columns])
+                          [erodePixels(localNbhdOp(c, 5, 'stddev'),3).alias(remap(c, 'std11')) for c in columns])
 
     return result
 
