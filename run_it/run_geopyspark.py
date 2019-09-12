@@ -569,6 +569,20 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
                     ]))\
                     .csv('s3n://{}/{}/{}'.format(s3_bucket, s3_prefix, params['incoming_names']))
 
+    incoming_static = spark.read \
+        .option('header', True) \
+        .schema(StructType([
+        StructField('name', StringType()),
+        StructField('run', IntegerType()),
+        StructField('iteration', IntegerType()),
+        StructField('processed', BooleanType()),
+        StructField('usage', StringType()),
+        StructField('label', StringType())
+    ])) \
+        .csv('s3n://{}/{}/{}'.format(s3_bucket, s3_prefix, params['incoming_names_static']))
+
+    incoming = incoming_static.union(incoming)
+
     incoming = incoming.filter(incoming['run']==params['runid']).filter(incoming['label']==True)
     test_names = f_pool.join(incoming.select('name'), 'name', 'left_anti').withColumn("usage",lit("test"))
     all_names = f_pool.join(incoming.select('name', 'usage'),
