@@ -793,7 +793,9 @@ def main(config_filename, probability_images, random_seed, output_all_images, bu
            .geopyspark_conf(appName="Learner Model Iteration", master="yarn") \
            .set("spark.dynamicAllocation.enabled", True) \
            .set("spark.ui.enabled", True) \
-           .set("spark.hadoop.yarn.timeline-service.enabled", False)
+           .set("spark.hadoop.yarn.timeline-service.enabled", False)\
+           .set("spark.network.timeout", "1800s")\
+           .set("spark.executor.heartbeatInterval", "90s")
     spark = SparkSession\
             .builder\
             .config(conf=conf)\
