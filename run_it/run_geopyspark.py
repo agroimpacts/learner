@@ -395,7 +395,7 @@ def gather_data(all_uris, names, metadata, feature_names, s3_bucket, include_mas
     if not include_masks:
         return features.select('spatial_key', explodeTiles(*feature_names)).repartition('column_index', 'row_index')
 
-    masks = get_masks_from_incoming_names(names, s3_bucket, 'labels/backups', metadata)
+    masks = get_masks_from_incoming_names(names, s3_bucket, 'labels', metadata)
     return features.join(masks.alias('masks'),
                          (col('masks.spatial_key.col') == features.spatial_key.col) &
                          (col('masks.spatial_key.row') == features.spatial_key.row))\
@@ -415,7 +415,7 @@ def ml_pipeline(feature_names, label_column, output_column='features'):
     classifier = RandomForestClassifier(labelCol=label_column, featuresCol=assembler.getOutputCol())\
                  .setSubsamplingRate(0.5)\
                  .setMaxDepth(16)\
-                 .setNumTrees(100)
+                 .setNumTrees(80)
                  # .setMaxDepth(10)\
                  # .setNumTrees(100)\
 
@@ -801,9 +801,7 @@ def main(config_filename, probability_images, random_seed, output_all_images, bu
            .geopyspark_conf(appName="Learner Model Iteration", master="yarn") \
            .set("spark.dynamicAllocation.enabled", True) \
            .set("spark.ui.enabled", True) \
-           .set("spark.hadoop.yarn.timeline-service.enabled", False)\
-           .set("spark.network.timeout", "1800s")\
-           .set("spark.executor.heartbeatInterval", "90s")
+           .set("spark.hadoop.yarn.timeline-service.enabled", False)
     spark = SparkSession\
             .builder\
             .config(conf=conf)\
