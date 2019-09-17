@@ -414,8 +414,8 @@ def ml_pipeline(feature_names, label_column, output_column='features'):
 
     classifier = RandomForestClassifier(labelCol=label_column, featuresCol=assembler.getOutputCol())\
                  .setSubsamplingRate(0.5)\
-                 .setMaxDepth(16)\
-                 .setNumTrees(80)
+                 .setMaxDepth(15)\
+                 .setNumTrees(100)
                  # .setMaxDepth(10)\
                  # .setNumTrees(100)\
 
@@ -664,8 +664,8 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
     logger.warn("Elapsed time for validating and saving metrics to s3: {}s".format(time.time() - checkpoint))
     logger.warn("metrics record:\ntss:{}  precision:{}  accuracy:{}  recall:{}  fpr:{}  tpr{}  AUC:{}".format(\
             tss,\
-            metrics.accuracy,\
             metrics.precision(1.0),\
+            metrics.accuracy,\
             metrics.recall(1.0),\
             metrics.falsePositiveRate(1.0),\
             metrics.truePositiveRate(1.0),\
