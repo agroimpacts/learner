@@ -664,8 +664,8 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
     logger.warn("Elapsed time for validating and saving metrics to s3: {}s".format(time.time() - checkpoint))
     logger.warn("metrics record:\ntss:{}  precision:{}  accuracy:{}  recall:{}  fpr:{}  tpr{}  AUC:{}".format(\
             tss,\
-            metrics.accuracy,\ 
-            metrics.precision(1.0),\ 
+            metrics.accuracy,\
+            metrics.precision(1.0),\
             metrics.recall(1.0),\
             metrics.falsePositiveRate(1.0),\
             metrics.truePositiveRate(1.0),\
