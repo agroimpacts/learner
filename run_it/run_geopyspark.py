@@ -334,8 +334,8 @@ def build_feature_frame(uri_frame, season, metadata, resampling=rwarp.Resampling
 
     result = frame.select(['spatial_key'] +
                           [erodePixels(c, 5).alias(remap(c, 'raw')) for c in columns] +
-                          [localNbhdOp(c, 11, 'mean').alias(remap(c, 'avg11')) for c in columns] +
-                          [localNbhdOp(c, 11, 'stddev').alias(remap(c, 'std11')) for c in columns])
+                          [localNbhdOp(c, 11, 'mean').alias(remap(c, 'avg')) for c in columns] +
+                          [erodePixels(localNbhdOp(c, 5, 'stddev'),3).alias(remap(c, 'std')) for c in columns])
 
     return result
 
@@ -414,7 +414,7 @@ def ml_pipeline(feature_names, label_column, output_column='features'):
 
     classifier = RandomForestClassifier(labelCol=label_column, featuresCol=assembler.getOutputCol())\
                  .setSubsamplingRate(0.5)\
-                 .setMaxDepth(16)\
+                 .setMaxDepth(15)\
                  .setNumTrees(100)
                  # .setMaxDepth(10)\
                  # .setNumTrees(100)\
@@ -528,8 +528,8 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
     catalog_prefix = params['image_catalog']
 
     feature_names = functools.reduce(lambda a, b: a + b, [["{}_raw_{}".format(season, n),
-                                                           "{}_avg11_{}".format(season, n),
-                                                           "{}_std11_{}".format(season, n)]
+                                                           "{}_avg_{}".format(season, n),
+                                                           "{}_std_{}".format(season, n)]
                                                           for season in ["GS", "OS"] for n in range(1, 5)])
 
     master_layout = gps.LayoutDefinition(gps.Extent(-17.541, -34.845, 51.419, 37.54), gps.TileLayout(13792, 14477, 200, 200))
