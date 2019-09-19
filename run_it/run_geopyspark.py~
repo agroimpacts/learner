@@ -313,7 +313,7 @@ def build_feature_frame(uri_frame, season, metadata, resampling=rwarp.Resampling
                      (gps.SpatialKey(int(r.col), int(r.row)),
                       read_buffered_window(r[season],
                                            metadata,
-                                           5,
+                                           2,
                                            (int(r.col), int(r.row)),
                                            resampling)
                      )
@@ -333,9 +333,9 @@ def build_feature_frame(uri_frame, season, metadata, resampling=rwarp.Resampling
     
 
     result = frame.select(['spatial_key'] +
-                          [erodePixels(c, 5).alias(remap(c, 'raw')) for c in columns] +
-                          [localNbhdOp(c, 11, 'mean').alias(remap(c, 'avg')) for c in columns] +
-                          [erodePixels(localNbhdOp(c, 5, 'stddev'),3).alias(remap(c, 'std')) for c in columns])
+                          [erodePixels(c, 2).alias(remap(c, 'raw')) for c in columns] +
+                          [localNbhdOp(c, 5, 'mean').alias(remap(c, 'avg')) for c in columns] +
+                          [localNbhdOp(c, 5, 'stddev').alias(remap(c, 'std')) for c in columns])
 
     return result
 
@@ -395,7 +395,7 @@ def gather_data(all_uris, names, metadata, feature_names, s3_bucket, include_mas
     if not include_masks:
         return features.select('spatial_key', explodeTiles(*feature_names)).repartition('column_index', 'row_index')
 
-    masks = get_masks_from_incoming_names(names, s3_bucket, 'labels', metadata)
+    masks = get_masks_from_incoming_names(names, s3_bucket, 'labels/backups', metadata)
     return features.join(masks.alias('masks'),
                          (col('masks.spatial_key.col') == features.spatial_key.col) &
                          (col('masks.spatial_key.row') == features.spatial_key.row))\
@@ -413,9 +413,9 @@ def ml_pipeline(feature_names, label_column, output_column='features'):
     assembler = VectorAssembler(inputCols=feature_names, outputCol=output_column)
 
     classifier = RandomForestClassifier(labelCol=label_column, featuresCol=assembler.getOutputCol())\
-                 .setSubsamplingRate(0.1)\
-                 .setMaxDepth(15)\
-                 .setNumTrees(60)
+                 .setSubsamplingRate(0.5)\
+                 .setMaxDepth(16)\
+                 .setNumTrees(100)
                  # .setMaxDepth(10)\
                  # .setNumTrees(100)\
 
@@ -568,20 +568,6 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
                         StructField('label', StringType())
                     ]))\
                     .csv('s3n://{}/{}/{}'.format(s3_bucket, s3_prefix, params['incoming_names']))
-
-
-    # merge incoming_names and incoming_names_static
-    incoming = incoming.union(spark.read \
-        .option('header', True) \
-        .schema(StructType([
-        StructField('name', StringType()),
-        StructField('run', IntegerType()),
-        StructField('iteration', IntegerType()),
-        StructField('processed', BooleanType()),
-        StructField('usage', StringType()),
-        StructField('label', StringType())
-    ])) \
-        .csv('s3n://{}/{}/{}'.format(s3_bucket, s3_prefix, params['incoming_names_static'])))
 
     incoming = incoming.filter(incoming['run']==params['runid']).filter(incoming['label']==True)
     test_names = f_pool.join(incoming.select('name'), 'name', 'left_anti').withColumn("usage",lit("test"))
@@ -807,7 +793,9 @@ def main(config_filename, probability_images, random_seed, output_all_images, bu
            .geopyspark_conf(appName="Learner Model Iteration", master="yarn") \
            .set("spark.dynamicAllocation.enabled", True) \
            .set("spark.ui.enabled", True) \
-           .set("spark.hadoop.yarn.timeline-service.enabled", False)
+           .set("spark.hadoop.yarn.timeline-service.enabled", False)\
+           .set("spark.network.timeout", "1800s")\
+           .set("spark.executor.heartbeatInterval", "90s")
     spark = SparkSession\
             .builder\
             .config(conf=conf)\
@@ -822,3 +810,5 @@ def main(config_filename, probability_images, random_seed, output_all_images, bu
 
 if __name__ == "__main__":
     main()
+
+
