@@ -736,9 +736,18 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
             ).alias('probability')
             )
             layer = gps.TiledRasterLayer.from_rasterframe(assembled.asRF())
+
         else:
             # sampling testing images (num = probability_images)
-            filtered_names_sample = filtered_names.sample(False, min(1.0, float(probability_images) / float(num_test_images)), seed=seed)
+            filtered_names_sample = filtered_names\
+                .sample(False, min(1.0, float(3) / float(num_test_images)), seed=seed)\
+                .join(image_catalog.filter(image_catalog['season'] == 'GS'), ['col', 'row'])\
+                .select('scene_id')\
+                .dropDuplicates()\
+                .join(image_catalog.filter(image_catalog['season'] == 'GS'), 'scene_id')\
+                .join(f_pool.union(qs_in), ['col','row'])\
+                .select('name', 'col', 'row', 'name_col_row')
+
             #re-collect all pixels within sampled images
             features_images = gather_data(all_image_uris,
                             filtered_names_sample,
