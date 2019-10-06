@@ -740,7 +740,7 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
         else:
             # sampling testing images (num = probability_images)
             filtered_names_sample = filtered_names\
-                .sample(False, min(1.0, float(3) / float(num_test_images)), seed=seed)\
+                .sample(False, min(1.0, float(probability_images) / float(num_test_images)), seed=seed)\
                 .join(image_catalog.filter(image_catalog['season'] == 'GS'), ['col', 'row'])\
                 .select('scene_id')\
                 .dropDuplicates()\
