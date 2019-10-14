@@ -363,7 +363,7 @@ def features_from_uri_frame(uris, metadata, feature_names):
               (col('gs.spatial_key.row') == col('os.spatial_key.row')))\
         .select(['gs.spatial_key'] + feature_names)
 
-def gather_data(all_uris, names, metadata, feature_names, s3_bucket, include_masks=False):
+def gather_data(all_uris, names, metadata, feature_names, s3_bucket, include_masks=False, validate = False):
     """
     Assembles a complete RasterFrame including all image features and (optionally)
     mask images
@@ -395,7 +395,11 @@ def gather_data(all_uris, names, metadata, feature_names, s3_bucket, include_mas
     if not include_masks:
         return features.select('spatial_key', explodeTiles(*feature_names)).repartition('column_index', 'row_index')
 
-    masks = get_masks_from_incoming_names(names, s3_bucket, 'labels', metadata)
+    if validate:
+        masks = get_masks_from_incoming_names(names, s3_bucket, 'labels', metadata)
+    else:
+        masks = get_masks_from_incoming_names(names, s3_bucket, 'labels/label_high', metadata)
+
     return features.join(masks.alias('masks'),
                          (col('masks.spatial_key.col') == features.spatial_key.col) &
                          (col('masks.spatial_key.row') == features.spatial_key.row))\
@@ -642,7 +646,8 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
                                   master_metadata,
                                   feature_names,
                                   s3_bucket,
-                                  include_masks=True)
+                                  include_masks=True,
+                                  validate = True)
 
     valid_fit = model.transform(validation_data).select('prediction', 'probability', 'mask')
 
