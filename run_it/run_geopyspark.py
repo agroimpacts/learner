@@ -398,7 +398,7 @@ def gather_data(all_uris, names, metadata, feature_names, s3_bucket, include_mas
     if validate:
         masks = get_masks_from_incoming_names(names, s3_bucket, 'labels', metadata)
     else:
-        masks = get_masks_from_incoming_names(names, s3_bucket, 'labels/label_high', metadata)
+        masks = get_masks_from_incoming_names(names, s3_bucket, 'labels/label_low', metadata)
 
     return features.join(masks.alias('masks'),
                          (col('masks.spatial_key.col') == features.spatial_key.col) &
