@@ -554,6 +554,13 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
          .csv('s3n://{}/{}/{}'.format(s3_bucket, s3_prefix, params['pool']))\
          .repartition('col', 'row')
 
+    pool_ref = spark\
+         .read\
+         .option('inferScheme', True)\
+         .option('header', True)\
+         .csv('s3n://{}/{}/{}'.format(s3_bucket, s3_prefix, params['pool_ref']))\
+         .repartition('col', 'row')
+
     qs_in = spark \
         .read \
         .option('inferScheme', True) \
@@ -588,12 +595,15 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
         .csv('s3n://{}/{}/{}'.format(s3_bucket, s3_prefix, params['incoming_names_static'])))
 
     incoming = incoming.filter(incoming['run']==params['runid']).filter(incoming['label']==True)
-    test_names = f_pool.join(incoming.select('name'), 'name', 'left_anti').withColumn("usage",lit("test"))
+    test_names = pool_ref.join(incoming.select('name'), 'name', 'left_anti').withColumn("usage",lit("test"))
+
+
     all_names = f_pool.join(incoming.select('name', 'usage'),
                             f_pool.name == incoming.name,
                             how='left')\
                       .select(f_pool.name.alias('name'), 'col', 'row', 'usage')
     num_test_images = test_names.count()
+    print("number of test_names: {}".format(num_test_images))
 
     image_catalog = spark.read\
                           .option('inferScheme', True)\
@@ -721,7 +731,7 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
 
         if complete_catalog:
             #recollect all pixels for all testing images
-            compreh_names = f_pool.union(qs_in)
+            compreh_names = pool_ref.union(qs_in)
             features_compreh = gather_data(all_image_uris,
                             compreh_names,
                             master_metadata,
@@ -750,7 +760,7 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
                 .select('scene_id')\
                 .dropDuplicates()\
                 .join(image_catalog.filter(image_catalog['season'] == 'GS'), 'scene_id')\
-                .join(f_pool.union(qs_in), ['col','row'])\
+                .join(pool_ref.union(qs_in), ['col','row'])\
                 .select('name', 'col', 'row', 'name_col_row')
 
             #re-collect all pixels within sampled images
@@ -796,7 +806,7 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
              .rdd.takeSample(False, (params['number_outgoing_names']))
     worst_keys = spark.createDataFrame(worst_keys_rdd)
     outgoing_names = worst_keys\
-                     .join(f_pool, (col('spatial_key.col') == col('col')) & (col('spatial_key.row') == col('row')))\
+                     .join(pool_ref, (col('spatial_key.col') == col('col')) & (col('spatial_key.row') == col('row')))\
                      .select('name')\
                      .withColumn('run', lit(run_id))\
                      .withColumn('iteration', lit(last_iteration + 1))\
