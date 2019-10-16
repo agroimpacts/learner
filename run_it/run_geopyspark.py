@@ -536,8 +536,8 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
                                                            "{}_std_{}".format(season, n)]
                                                           for season in ["GS", "OS"] for n in range(1, 5)])
 
-    master_layout = gps.LayoutDefinition(gps.Extent(-17.541, -34.845, 51.419, 37.54), gps.TileLayout(13792, 14477, 200, 200))
-    master_metadata = gps.Metadata(gps.Bounds(gps.SpatialKey(0, 0), gps.SpatialKey(13792, 14477)),
+    master_layout = gps.LayoutDefinition(gps.Extent(-17.541, -35.46, 51.459, 37.54), gps.TileLayout(13800, 14600, 200, 200))
+    master_metadata = gps.Metadata(gps.Bounds(gps.SpatialKey(0, 0), gps.SpatialKey(13800, 14600)),
                                    "+proj=longlat +datum=WGS84 +no_defs ",
                                    gps.CellType.INT8,
                                    master_layout.extent,
