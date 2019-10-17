@@ -398,7 +398,7 @@ def gather_data(all_uris, names, metadata, feature_names, s3_bucket, include_mas
     if validate:
         masks = get_masks_from_incoming_names(names, s3_bucket, 'labels', metadata)
     else:
-        masks = get_masks_from_incoming_names(names, s3_bucket, 'labels/label_low', metadata)
+        masks = get_masks_from_incoming_names(names, s3_bucket, 'labels/label_high', metadata)
 
     return features.join(masks.alias('masks'),
                          (col('masks.spatial_key.col') == features.spatial_key.col) &
@@ -536,12 +536,9 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
                                                            "{}_std_{}".format(season, n)]
                                                           for season in ["GS", "OS"] for n in range(1, 5)])
 
-<<<<<<< HEAD
+
     master_layout = gps.LayoutDefinition(gps.Extent(-17.541, -35.46, 51.459, 37.54), gps.TileLayout(13800, 14600, 200, 200))
-=======
-    master_layout = gps.LayoutDefinition(gps.Extent(-17.541, -35.46, 51.459, 37.54),
-                                         gps.TileLayout(13800, 14600, 200, 200))
->>>>>>> testing/scoreMaps_low
+    
     master_metadata = gps.Metadata(gps.Bounds(gps.SpatialKey(0, 0), gps.SpatialKey(13800, 14600)),
                                    "+proj=longlat +datum=WGS84 +no_defs ",
                                    gps.CellType.INT8,
