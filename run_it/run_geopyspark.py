@@ -398,7 +398,7 @@ def gather_data(all_uris, names, metadata, feature_names, s3_bucket, include_mas
     if validate:
         masks = get_masks_from_incoming_names(names, s3_bucket, 'labels', metadata)
     else:
-        masks = get_masks_from_incoming_names(names, s3_bucket, 'labels/label_high', metadata)
+        masks = get_masks_from_incoming_names(names, s3_bucket, 'labels/label_low', metadata)
 
     return features.join(masks.alias('masks'),
                          (col('masks.spatial_key.col') == features.spatial_key.col) &
@@ -536,7 +536,12 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
                                                            "{}_std_{}".format(season, n)]
                                                           for season in ["GS", "OS"] for n in range(1, 5)])
 
+<<<<<<< HEAD
     master_layout = gps.LayoutDefinition(gps.Extent(-17.541, -35.46, 51.459, 37.54), gps.TileLayout(13800, 14600, 200, 200))
+=======
+    master_layout = gps.LayoutDefinition(gps.Extent(-17.541, -35.46, 51.459, 37.54),
+                                         gps.TileLayout(13800, 14600, 200, 200))
+>>>>>>> testing/scoreMaps_low
     master_metadata = gps.Metadata(gps.Bounds(gps.SpatialKey(0, 0), gps.SpatialKey(13800, 14600)),
                                    "+proj=longlat +datum=WGS84 +no_defs ",
                                    gps.CellType.INT8,
@@ -693,35 +698,35 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
     logger.warn("Elapsed time for validating and saving metrics to s3: {}s".format(time.time() - checkpoint))
 
     ####################################
-    logger.warn("Classifying test data")
+    # logger.warn("Classifying test data and produce maps")
 
-    checkpoint = time.time()
-    filtered_names = test_names.filter(test_names.usage == "test")
-    # filtered_names.cache()
-    # filtered_names.show()
-    test_features = gather_data(all_image_uris,
-                                filtered_names,
-                                master_metadata,
-                                feature_names,
-                                s3_bucket)
-    
-    test_features_sample = test_features.sample(True, 0.1)
-
-    fitted = model.transform(test_features_sample).select('spatial_key', 'column_index', 'row_index', 'probability', 'prediction')
-    # fitted.cache()
-    # fitted.show()
-    grouped = fitted.groupBy('spatial_key')
-
-    # don't want to use following UDF, but indication is that there is a bug in pyspark preventing vector accesses:
-    # https://stackoverflow.com/questions/44425159/access-element-of-a-vector-in-a-spark-dataframe-logistic-regression-probability
-    # (This did not work without the UDF!)
-    firstelement = F.udf(lambda v: float(v[0]), FloatType())
-    # added this UDF to select the probability of field rather than no field to write to probability images
-    secondelement = F.udf(lambda v: float(v[1]), FloatType())
-    certainty = grouped\
-            .agg(F.avg(F.pow(firstelement(fitted.probability) - lit(0.5), 2.0)).alias('certainty')).cache()
-    certainty.show()
-    logger.warn("Elapsed time for classifying test grids: {}s".format(time.time() - checkpoint))
+    # checkpoint = time.time()
+    # filtered_names = test_names.filter(test_names.usage == "test")
+    # # filtered_names.cache()
+    # # filtered_names.show()
+    # test_features = gather_data(all_image_uris,
+    #                             filtered_names,
+    #                             master_metadata,
+    #                             feature_names,
+    #                             s3_bucket)
+    #
+    # test_features_sample = test_features.sample(True, 0.1)
+    #
+    # fitted = model.transform(test_features_sample).select('spatial_key', 'column_index', 'row_index', 'probability', 'prediction')
+    # # fitted.cache()
+    # # fitted.show()
+    # grouped = fitted.groupBy('spatial_key')
+    #
+    # # don't want to use following UDF, but indication is that there is a bug in pyspark preventing vector accesses:
+    # # https://stackoverflow.com/questions/44425159/access-element-of-a-vector-in-a-spark-dataframe-logistic-regression-probability
+    # # (This did not work without the UDF!)
+    # firstelement = F.udf(lambda v: float(v[0]), FloatType())
+    # # added this UDF to select the probability of field rather than no field to write to probability images
+    # secondelement = F.udf(lambda v: float(v[1]), FloatType())
+    # certainty = grouped\
+    #         .agg(F.avg(F.pow(firstelement(fitted.probability) - lit(0.5), 2.0)).alias('certainty')).cache()
+    # certainty.show()
+    # logger.warn("Elapsed time for classifying test grids: {}s".format(time.time() - checkpoint))
 
     ####################################
     if probability_images > 0 or complete_catalog:
@@ -731,7 +736,7 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
 
         if complete_catalog:
             #recollect all pixels for all testing images
-            compreh_names = pool_ref.union(qs_in)
+            compreh_names = pool_ref.join(qs_in, ['name', 'col', 'row', 'name_col_row'], 'outer')
             features_compreh = gather_data(all_image_uris,
                             compreh_names,
                             master_metadata,
@@ -796,26 +801,26 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
         logger.warn("Elapsed time for writing catalog of probability images: {}s".format(time.time() - checkpoint))
 
     ####################################
-    logger.warn("Identify worst performing cells")
-    checkpoint = time.time()
-    # TODO: Determine which images to take
-    worst_keys_rdd = certainty\
-             .sort('certainty')\
-             .select('spatial_key')\
-             .limit(round(certainty.count()*0.05))\
-             .rdd.takeSample(False, (params['number_outgoing_names']))
-    worst_keys = spark.createDataFrame(worst_keys_rdd)
-    outgoing_names = worst_keys\
-                     .join(pool_ref, (col('spatial_key.col') == col('col')) & (col('spatial_key.row') == col('row')))\
-                     .select('name')\
-                     .withColumn('run', lit(run_id))\
-                     .withColumn('iteration', lit(last_iteration + 1))\
-                     .withColumn('processed', lit(False))\
-                     .withColumn('usage', lit('train'))\
-                     .toPandas()
-    uri = urlparse.urlparse(params['outgoing'].format(aoi_name))
-    pd_df_to_s3_csv(outgoing_names, uri.netloc, uri.path[1:])
-    logger.warn("Elapsed time for sorting certainty, converting to Pandas Dataframe, and saving to s3: {}s".format(time.time() - checkpoint))
+    # logger.warn("Identify worst performing cells")
+    # checkpoint = time.time()
+    # # TODO: Determine which images to take
+    # worst_keys_rdd = certainty\
+    #          .sort('certainty')\
+    #          .select('spatial_key')\
+    #          .limit(round(certainty.count()*0.05))\
+    #          .rdd.takeSample(False, (params['number_outgoing_names']))
+    # worst_keys = spark.createDataFrame(worst_keys_rdd)
+    # outgoing_names = worst_keys\
+    #                  .join(pool_ref, (col('spatial_key.col') == col('col')) & (col('spatial_key.row') == col('row')))\
+    #                  .select('name')\
+    #                  .withColumn('run', lit(run_id))\
+    #                  .withColumn('iteration', lit(last_iteration + 1))\
+    #                  .withColumn('processed', lit(False))\
+    #                  .withColumn('usage', lit('train'))\
+    #                  .toPandas()
+    # uri = urlparse.urlparse(params['outgoing'].format(aoi_name))
+    # pd_df_to_s3_csv(outgoing_names, uri.netloc, uri.path[1:])
+    # logger.warn("Elapsed time for sorting certainty, converting to Pandas Dataframe, and saving to s3: {}s".format(time.time() - checkpoint))
 
 @click.command()
 @click.option('--config-filename', default='cvmapper_config.yaml', help='The name of the config to use.')
