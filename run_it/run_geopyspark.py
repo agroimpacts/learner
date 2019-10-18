@@ -716,9 +716,9 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
     # # don't want to use following UDF, but indication is that there is a bug in pyspark preventing vector accesses:
     # # https://stackoverflow.com/questions/44425159/access-element-of-a-vector-in-a-spark-dataframe-logistic-regression-probability
     # # (This did not work without the UDF!)
-    # firstelement = F.udf(lambda v: float(v[0]), FloatType())
-    # # added this UDF to select the probability of field rather than no field to write to probability images
-    # secondelement = F.udf(lambda v: float(v[1]), FloatType())
+    firstelement = F.udf(lambda v: float(v[0]), FloatType())
+    # added this UDF to select the probability of field rather than no field to write to probability images
+    secondelement = F.udf(lambda v: float(v[1]), FloatType())
     # certainty = grouped\
     #         .agg(F.avg(F.pow(firstelement(fitted.probability) - lit(0.5), 2.0)).alias('certainty')).cache()
     # certainty.show()
