@@ -25,8 +25,8 @@ from pyspark.ml import Pipeline
 from pyspark.ml.classification import RandomForestClassifier
 from pyspark.ml.feature import VectorAssembler
 from pyspark.mllib.evaluation import MulticlassMetrics, BinaryClassificationMetrics
-from pyspark.sql import SparkSession, Row
-from pyspark.sql.functions import col, lit
+from pyspark.sql import SparkSession, Row, Window
+from pyspark.sql.functions import col, lit, floor
 import pyspark.sql.functions as F
 from pyspark.sql.types import FloatType, StructType, StructField, StringType, IntegerType, BooleanType
 
@@ -784,11 +784,15 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
     logger.warn("Identify worst performing cells")
     checkpoint = time.time()
     # TODO: Determine which images to take
-    worst_keys_rdd = certainty\
-             .sort('certainty')\
-             .select('spatial_key')\
-             .limit(round(certainty.count()*0.05))\
-             .rdd.takeSample(False, (params['number_outgoing_names']))
+    w = Window.partitionBy('tile_col', 'tile_row')
+
+    worst_keys_rdd = certainty \
+        .withColumn('tile_col', floor(certainty.spatial_key.col / 10)) \
+        .withColumn('tile_row', floor(certainty.spatial_key.row / 10)) \
+        .withColumn("certainty_min", F.min('certainty').over(w)) \
+        .where(col('certainty') == col('certainty_min')) \
+        .select('spatial_key') \
+        .rdd
     worst_keys = spark.createDataFrame(worst_keys_rdd)
     outgoing_names = worst_keys\
                      .join(f_pool, (col('spatial_key.col') == col('col')) & (col('spatial_key.row') == col('row')))\
