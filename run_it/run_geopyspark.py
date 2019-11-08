@@ -398,7 +398,7 @@ def gather_data(all_uris, names, metadata, feature_names, s3_bucket, include_mas
     if validate:
         masks = get_masks_from_incoming_names(names, s3_bucket, 'labels', metadata)
     else:
-        masks = get_masks_from_incoming_names(names, s3_bucket, 'labels/label_low', metadata)
+        masks = get_masks_from_incoming_names(names, s3_bucket, 'labels/label_high', metadata)
 
     return features.join(masks.alias('masks'),
                          (col('masks.spatial_key.col') == features.spatial_key.col) &
@@ -536,12 +536,9 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
                                                            "{}_std_{}".format(season, n)]
                                                           for season in ["GS", "OS"] for n in range(1, 5)])
 
-<<<<<<< HEAD
+
     master_layout = gps.LayoutDefinition(gps.Extent(-17.541, -35.46, 51.459, 37.54), gps.TileLayout(13800, 14600, 200, 200))
-=======
-    master_layout = gps.LayoutDefinition(gps.Extent(-17.541, -35.46, 51.459, 37.54),
-                                         gps.TileLayout(13800, 14600, 200, 200))
->>>>>>> testing/scoreMaps_low
+    
     master_metadata = gps.Metadata(gps.Bounds(gps.SpatialKey(0, 0), gps.SpatialKey(13800, 14600)),
                                    "+proj=longlat +datum=WGS84 +no_defs ",
                                    gps.CellType.INT8,
@@ -700,6 +697,7 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
     ####################################
     logger.warn("Classifying test data and produce maps")
 
+<<<<<<< HEAD
     checkpoint = time.time()
     filtered_names = test_names.filter(test_names.usage == "test")
     # filtered_names.cache()
@@ -727,6 +725,35 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
             .agg(F.avg(F.pow(firstelement(fitted.probability) - lit(0.5), 2.0)).alias('certainty'))
     certainty.show()
     logger.warn("Elapsed time for classifying test grids: {}s".format(time.time() - checkpoint))
+=======
+    # checkpoint = time.time()
+    # filtered_names = test_names.filter(test_names.usage == "test")
+    # # filtered_names.cache()
+    # # filtered_names.show()
+    # test_features = gather_data(all_image_uris,
+    #                             filtered_names,
+    #                             master_metadata,
+    #                             feature_names,
+    #                             s3_bucket)
+    #
+    # test_features_sample = test_features.sample(True, 0.1)
+    #
+    # fitted = model.transform(test_features_sample).select('spatial_key', 'column_index', 'row_index', 'probability', 'prediction')
+    # # fitted.cache()
+    # # fitted.show()
+    # grouped = fitted.groupBy('spatial_key')
+    #
+    # # don't want to use following UDF, but indication is that there is a bug in pyspark preventing vector accesses:
+    # # https://stackoverflow.com/questions/44425159/access-element-of-a-vector-in-a-spark-dataframe-logistic-regression-probability
+    # # (This did not work without the UDF!)
+    firstelement = F.udf(lambda v: float(v[0]), FloatType())
+    # added this UDF to select the probability of field rather than no field to write to probability images
+    secondelement = F.udf(lambda v: float(v[1]), FloatType())
+    # certainty = grouped\
+    #         .agg(F.avg(F.pow(firstelement(fitted.probability) - lit(0.5), 2.0)).alias('certainty')).cache()
+    # certainty.show()
+    # logger.warn("Elapsed time for classifying test grids: {}s".format(time.time() - checkpoint))
+>>>>>>> d40a50eb1b2afa710b84ebe77fbc0a6c8b968364
 
     ####################################
     if probability_images > 0 or complete_catalog:
