@@ -698,35 +698,35 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
     logger.warn("Elapsed time for validating and saving metrics to s3: {}s".format(time.time() - checkpoint))
 
     ####################################
-    # logger.warn("Classifying test data and produce maps")
+    logger.warn("Classifying test data and produce maps")
 
-    # checkpoint = time.time()
-    # filtered_names = test_names.filter(test_names.usage == "test")
-    # # filtered_names.cache()
-    # # filtered_names.show()
-    # test_features = gather_data(all_image_uris,
-    #                             filtered_names,
-    #                             master_metadata,
-    #                             feature_names,
-    #                             s3_bucket)
-    #
-    # test_features_sample = test_features.sample(True, 0.1)
-    #
-    # fitted = model.transform(test_features_sample).select('spatial_key', 'column_index', 'row_index', 'probability', 'prediction')
-    # # fitted.cache()
-    # # fitted.show()
-    # grouped = fitted.groupBy('spatial_key')
-    #
-    # # don't want to use following UDF, but indication is that there is a bug in pyspark preventing vector accesses:
-    # # https://stackoverflow.com/questions/44425159/access-element-of-a-vector-in-a-spark-dataframe-logistic-regression-probability
-    # # (This did not work without the UDF!)
-    # firstelement = F.udf(lambda v: float(v[0]), FloatType())
-    # # added this UDF to select the probability of field rather than no field to write to probability images
-    # secondelement = F.udf(lambda v: float(v[1]), FloatType())
-    # certainty = grouped\
-    #         .agg(F.avg(F.pow(firstelement(fitted.probability) - lit(0.5), 2.0)).alias('certainty')).cache()
-    # certainty.show()
-    # logger.warn("Elapsed time for classifying test grids: {}s".format(time.time() - checkpoint))
+    checkpoint = time.time()
+    filtered_names = test_names.filter(test_names.usage == "test")
+    # filtered_names.cache()
+    # filtered_names.show()
+    test_features = gather_data(all_image_uris,
+                                filtered_names,
+                                master_metadata,
+                                feature_names,
+                                s3_bucket)
+
+    test_features_sample = test_features.sample(True, 0.1)
+
+    fitted = model.transform(test_features_sample).select('spatial_key', 'column_index', 'row_index', 'probability', 'prediction')
+    # fitted.cache()
+    # fitted.show()
+    grouped = fitted.groupBy('spatial_key')
+
+    # don't want to use following UDF, but indication is that there is a bug in pyspark preventing vector accesses:
+    # https://stackoverflow.com/questions/44425159/access-element-of-a-vector-in-a-spark-dataframe-logistic-regression-probability
+    # (This did not work without the UDF!)
+    firstelement = F.udf(lambda v: float(v[0]), FloatType())
+    # added this UDF to select the probability of field rather than no field to write to probability images
+    secondelement = F.udf(lambda v: float(v[1]), FloatType())
+    certainty = grouped\
+            .agg(F.avg(F.pow(firstelement(fitted.probability) - lit(0.5), 2.0)).alias('certainty'))
+    certainty.show()
+    logger.warn("Elapsed time for classifying test grids: {}s".format(time.time() - checkpoint))
 
     ####################################
     if probability_images > 0 or complete_catalog:
