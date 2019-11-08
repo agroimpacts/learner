@@ -697,7 +697,6 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
     ####################################
     logger.warn("Classifying test data and produce maps")
 
-<<<<<<< HEAD
     checkpoint = time.time()
     filtered_names = test_names.filter(test_names.usage == "test")
     # filtered_names.cache()
@@ -725,7 +724,7 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
             .agg(F.avg(F.pow(firstelement(fitted.probability) - lit(0.5), 2.0)).alias('certainty'))
     certainty.show()
     logger.warn("Elapsed time for classifying test grids: {}s".format(time.time() - checkpoint))
-=======
+
 #     # checkpoint = time.time()
 #     # filtered_names = test_names.filter(test_names.usage == "test")
 #     # # filtered_names.cache()
@@ -753,7 +752,6 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
 #     #         .agg(F.avg(F.pow(firstelement(fitted.probability) - lit(0.5), 2.0)).alias('certainty')).cache()
 #     # certainty.show()
 #     # logger.warn("Elapsed time for classifying test grids: {}s".format(time.time() - checkpoint))
-# >>>>>>> d40a50eb1b2afa710b84ebe77fbc0a6c8b968364
 
     ####################################
     if probability_images > 0 or complete_catalog:
