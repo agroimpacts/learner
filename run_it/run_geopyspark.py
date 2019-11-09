@@ -695,7 +695,7 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
     logger.warn("Elapsed time for validating and saving metrics to s3: {}s".format(time.time() - checkpoint))
 
     ####################################
-    logger.warn("Classifying test data and produce maps")
+    # logger.warn("Classifying test data and produce maps")
 
     # checkpoint = time.time()
     # filtered_names = test_names.filter(test_names.usage == "test")
