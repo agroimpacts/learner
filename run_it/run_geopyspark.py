@@ -395,7 +395,7 @@ def gather_data(all_uris, names, metadata, feature_names, s3_bucket, include_mas
     if not include_masks:
         return features.select('spatial_key', explodeTiles(*feature_names)).repartition('column_index', 'row_index')
 
-    masks = get_masks_from_incoming_names(names, s3_bucket, 'labels', metadata)
+    masks = get_masks_from_incoming_names(names, s3_bucket, 'labels/al2', metadata)
     return features.join(masks.alias('masks'),
                          (col('masks.spatial_key.col') == features.spatial_key.col) &
                          (col('masks.spatial_key.row') == features.spatial_key.row))\
