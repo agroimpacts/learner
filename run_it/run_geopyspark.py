@@ -526,6 +526,7 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
     s3_prefix = s3_prefix[0:-1] if s3_prefix.endswith('/') else s3_prefix
 
     catalog_prefix = params['image_catalog']
+    catalog_prefix_fix = params['image_catalog_fix']
 
     feature_names = functools.reduce(lambda a, b: a + b, [["{}_raw_{}".format(season, n),
                                                            "{}_avg_{}".format(season, n),
@@ -715,9 +716,23 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
         
 
         if complete_catalog:
+
+            # new catalog
+            image_catalog_fix = spark.read \
+                .option('inferScheme', True) \
+                .option('header', True) \
+                .csv('s3n://{}/{}'.format(s3_bucket, catalog_prefix_fix)) \
+                .repartition('col', 'row')
+            all_image_uris_fix = image_catalog_fix \
+                .filter(image_catalog_fix['season'] == 'GS') \
+                .alias('gs') \
+                .join(image_catalog_fix.filter(image_catalog_fix['season'] == 'OS').alias('os'),
+                      (col('gs.col') == col('os.col')) & (col('gs.row') == col('os.row'))) \
+                .select(col('gs.col'), col('gs.row'), col('gs.uri').alias('GS'), col('os.uri').alias('OS'))
+
             #recollect all pixels for all testing images
             compreh_names = f_pool.join(qs_in, ['name', 'col', 'row', 'name_col_row'], 'outer')
-            features_compreh = gather_data(all_image_uris,
+            features_compreh = gather_data(all_image_uris_fix,
                             compreh_names,
                             master_metadata,
                             feature_names,
