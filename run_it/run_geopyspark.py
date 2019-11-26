@@ -704,9 +704,7 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
     firstelement = F.udf(lambda v: float(v[0]), FloatType())
     # added this UDF to select the probability of field rather than no field to write to probability images
     secondelement = F.udf(lambda v: float(v[1]), FloatType())
-    certainty = grouped\
-            .agg(F.avg(F.pow(firstelement(fitted.probability) - lit(0.5), 2.0)).alias('certainty')).cache()
-    certainty.show()
+
     logger.warn("Elapsed time for classifying test grids: {}s".format(time.time() - checkpoint))
 
     ####################################
@@ -753,6 +751,36 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
             layer = gps.TiledRasterLayer.from_rasterframe(assembled.asRF())
 
         else:
+            ####################################
+            logger.warn("Identify worst performing cells")
+            checkpoint = time.time()
+            # TODO: Determine which images to take
+            certainty = grouped \
+                .agg(F.avg(F.pow(firstelement(fitted.probability) - lit(0.5), 2.0)).alias('certainty')).cache()
+            certainty.show()
+
+            worst_keys_rdd = certainty \
+                .sort('certainty') \
+                .select('spatial_key') \
+                .limit(round(certainty.count() * 0.05)) \
+                .rdd.takeSample(False, (params['number_outgoing_names']))
+            worst_keys = spark.createDataFrame(worst_keys_rdd)
+            outgoing_names = worst_keys \
+                .join(f_pool, (col('spatial_key.col') == col('col')) & (col('spatial_key.row') == col('row'))) \
+                .select('name') \
+                .withColumn('run', lit(run_id)) \
+                .withColumn('iteration', lit(last_iteration + 1)) \
+                .withColumn('processed', lit(False)) \
+                .withColumn('usage', lit('train')) \
+                .toPandas()
+            uri = urlparse.urlparse(params['outgoing'])
+            pd_df_to_s3_csv(outgoing_names, uri.netloc, uri.path[1:])
+            logger.warn(
+                "Elapsed time for sorting certainty, converting to Pandas Dataframe, and saving to s3: {}s".format(
+                    time.time() - checkpoint))
+
+            ###########################################
+            checkpoint = time.time()
             # sampling testing images (num = probability_images)
             filtered_names_sample = filtered_names\
                 .sample(False, min(1.0, float(probability_images) / float(num_test_images)), seed=seed)\
@@ -795,27 +823,8 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
         output_tiles.foreach(lambda pair: write_bytes_to_s3(cog_location.format(pair[0].col, pair[0].row, aoi_name, run_id, str(last_iteration+1)), pair[1]))
         logger.warn("Elapsed time for writing catalog of probability images: {}s".format(time.time() - checkpoint))
 
-    ####################################
-    logger.warn("Identify worst performing cells")
-    checkpoint = time.time()
-    # TODO: Determine which images to take
-    worst_keys_rdd = certainty\
-             .sort('certainty')\
-             .select('spatial_key')\
-             .limit(round(certainty.count()*0.05))\
-             .rdd.takeSample(False, (params['number_outgoing_names']))
-    worst_keys = spark.createDataFrame(worst_keys_rdd)
-    outgoing_names = worst_keys\
-                     .join(f_pool, (col('spatial_key.col') == col('col')) & (col('spatial_key.row') == col('row')))\
-                     .select('name')\
-                     .withColumn('run', lit(run_id))\
-                     .withColumn('iteration', lit(last_iteration + 1))\
-                     .withColumn('processed', lit(False))\
-                     .withColumn('usage', lit('train'))\
-                     .toPandas()
-    uri = urlparse.urlparse(params['outgoing'])
-    pd_df_to_s3_csv(outgoing_names, uri.netloc, uri.path[1:])
-    logger.warn("Elapsed time for sorting certainty, converting to Pandas Dataframe, and saving to s3: {}s".format(time.time() - checkpoint))
+
+
 
 @click.command()
 @click.option('--config-filename', default='cvmapper_config.yaml', help='The name of the config to use.')
