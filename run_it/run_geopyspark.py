@@ -361,6 +361,9 @@ def features_from_uri_frame(uris, metadata, feature_names):
         .join(build_feature_frame(uris, 'OS', metadata).alias('os'),
               (col('gs.spatial_key.col') == col('os.spatial_key.col')) &
               (col('gs.spatial_key.row') == col('os.spatial_key.row')))\
+        .join(build_feature_frame(uris, 'Radar', metadata).alias('radar'),
+              (col('gs.spatial_key.col') == col('radar.spatial_key.col')) &
+              (col('gs.spatial_key.row') == col('radar.spatial_key.row')))\
         .select(['gs.spatial_key'] + feature_names)
 
 def gather_data(all_uris, names, metadata, feature_names, s3_bucket, label_path='labels', include_masks=False):
@@ -389,7 +392,7 @@ def gather_data(all_uris, names, metadata, feature_names, s3_bucket, label_path=
     """
     uris = all_uris\
            .join(names.alias('sites'), (col('sites.col') == col('gs.col')) & (col('sites.row') == col('gs.row')))\
-           .select(col('sites.name').alias('name'), 'gs.col', 'gs.row', 'GS', 'OS')
+           .select(col('sites.name').alias('name'), 'gs.col', 'gs.row', 'GS', 'OS', 'radar')
     features = features_from_uri_frame(uris, metadata, feature_names)
 
     if not include_masks:
@@ -527,11 +530,12 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
 
     catalog_prefix = params['image_catalog']
     catalog_prefix_fix = params['image_catalog_fix']
+    radar_catalog_prefix = params['radar_catalog']
 
     feature_names = functools.reduce(lambda a, b: a + b, [["{}_raw_{}".format(season, n),
                                                            "{}_avg_{}".format(season, n),
                                                            "{}_std_{}".format(season, n)]
-                                                          for season in ["GS", "OS"] for n in range(1, 5)])
+                                                          for season in ["GS", "OS", "Radar"] for n in range(1, 5)])
 
     master_layout = gps.LayoutDefinition(gps.Extent(-17.541, -35.46, 51.459, 37.54), gps.TileLayout(13800, 14600, 200, 200))
     master_metadata = gps.Metadata(gps.Bounds(gps.SpatialKey(0, 0), gps.SpatialKey(13800, 14600)),
@@ -597,12 +601,20 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
                           .option('header', True)\
                           .csv('s3n://{}/{}'.format(s3_bucket, catalog_prefix))\
                           .repartition('col', 'row')
+    radar_catalog = spark.read\
+                          .option('inferScheme', True)\
+                          .option('header', True)\
+                          .csv('s3n://{}/{}'.format(s3_bucket, radar_catalog_prefix))\
+                          .repartition('col', 'row')
     all_image_uris = image_catalog\
                      .filter(image_catalog['season'] == 'GS')\
                      .alias('gs')\
                      .join(image_catalog.filter(image_catalog['season'] == 'OS').alias('os'),
                            (col('gs.col') == col('os.col')) & (col('gs.row') == col('os.row')))\
-                     .select(col('gs.col'), col('gs.row'), col('gs.uri').alias('GS'), col('os.uri').alias('OS'))
+                     .join(radar_catalog.alias('radar'),
+                           (col('gs.col') == col('radar.col')) & (col('gs.row') == col('radar.row')))\
+                     .select(col('gs.col'), col('gs.row'), col('gs.uri').alias('GS'), col('os.uri').alias('OS'),
+                             col('radar.uri').alias('Radar'))
     logger.warn("Elapsed time for reading source tables: {}s".format(time.time() - checkpoint))
     ####################################
     logger.warn("Reading training labels & building training features")
@@ -723,12 +735,16 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
                 .option('header', True) \
                 .csv('s3n://{}/{}'.format(s3_bucket, catalog_prefix_fix)) \
                 .repartition('col', 'row')
+
             all_image_uris_fix = image_catalog_fix \
                 .filter(image_catalog_fix['season'] == 'GS') \
                 .alias('gs') \
                 .join(image_catalog_fix.filter(image_catalog_fix['season'] == 'OS').alias('os'),
                       (col('gs.col') == col('os.col')) & (col('gs.row') == col('os.row'))) \
-                .select(col('gs.col'), col('gs.row'), col('gs.uri').alias('GS'), col('os.uri').alias('OS'))
+                .join(radar_catalog.alias('radar'),
+                      (col('gs.col') == col('radar.col')) & (col('gs.row') == col('radar.row'))) \
+                .select(col('gs.col'), col('gs.row'), col('gs.uri').alias('GS'), col('os.uri').alias('OS'),
+                        col('radar.uri').alias('Radar'))
 
             #recollect all pixels for all testing images
             compreh_names = f_pool.join(qs_in, ['name', 'col', 'row', 'name_col_row'], 'outer')
