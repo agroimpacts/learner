@@ -392,7 +392,7 @@ def gather_data(all_uris, names, metadata, feature_names, s3_bucket, label_path=
     """
     uris = all_uris\
            .join(names.alias('sites'), (col('sites.col') == col('gs.col')) & (col('sites.row') == col('gs.row')))\
-           .select(col('sites.name').alias('name'), 'gs.col', 'gs.row', 'GS', 'OS', 'radar')
+           .select(col('sites.name').alias('name'), 'gs.col', 'gs.row', 'GS', 'OS', 'Radar')
     features = features_from_uri_frame(uris, metadata, feature_names)
 
     if not include_masks:
