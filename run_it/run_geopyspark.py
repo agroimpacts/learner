@@ -614,7 +614,8 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
                                 feature_names,
                                 s3_bucket,
                                 label_path,
-                                include_masks=True)
+                                include_masks=True)\
+        .sample(False, 0.5)
     training_data.show()
     logger.warn("Elapsed time for reading training labels and feature building: {}s".format(time.time() - checkpoint))
 
@@ -678,6 +679,8 @@ def execute(spark, logger, s3_bucket, run_id, aoi_name, complete_catalog, probab
     # print("############New Iteration Metrics to use to overwrite###########")
     # print(report.to_string())
     pd_df_to_s3_csv(report, s3_bucket, os.path.join(s3_prefix,params['metrics']))
+
+    del training_data, balanced_data, validation_data
     logger.warn("Elapsed time for validating and saving metrics to s3: {}s".format(time.time() - checkpoint))
 
     ####################################
