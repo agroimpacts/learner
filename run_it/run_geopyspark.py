@@ -143,9 +143,8 @@ def read_buffered_window(uri, metadata, px_buffer, cell, resampling):
     dest_height = max(int(ceil((dest_bounds.ymax - dest_bounds.ymin) / res[1])), 1)
     dest_transform, dest_width, dest_height = rwarp.aligned_target(dest_transform, dest_width, dest_height, res)
 
-    tile = np.zeros((4, layout.tileLayout.tileCols + 2 * px_buffer, layout.tileLayout.tileRows + 2 * px_buffer))
-
     with rstr.open(uri) as src:
+        tile = np.zeros((src.count, layout.tileLayout.tileCols + 2 * px_buffer, layout.tileLayout.tileRows + 2 * px_buffer))
         rwarp.reproject(
             source=rstr.band(src, list(range(1, src.count + 1))),
             destination=tile,
