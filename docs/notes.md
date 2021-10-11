@@ -1,0 +1,58 @@
+## Notes, to be cleaned up into documentation
+- `gps.TileLayout` defines number of grids to divide the extent into
+- since we wanted 0.005 grid cell resolution we need to specify number of chunks for first two arguments (columns, rows) of `gps.TileLayout`
+- pixels per image should match size of image masks, final two arguments for `gps.TileLayout`
+- is Su spitting out masks with this master grid resolution?
+- `gps.Metadata` every grid cell has key value, gps.SpatiaKey defines tange of key values
+- **justin has updated s3 config file, needs to be updated config template mapper**
+    - `image_catalog` deviates from scheme, includes prefix and filename, can be easily changed
+    - `image_output_pattern` is the probability images path
+    - column and row identifiers are not going to be the `master_layout`, larger cogs. Done to `coarse_layout which` can be changed. has same extant and resolution and tweaked for less chunks
+- prob outputs are cogs, we just need to figure out how to ingest them into raster foundry
+- click options updated, can now supply sampling of prob images
+    - no way to generate complete catalog of probability images, justin will make a flag for this
+- justin will add flag to output final prediction map
+- justin will leave RF model storage to us
+- can be saved after `model = pipeline.fit(...)`
+- they forked pyrasterframes and we use it. they want to pull it into main line. no python documentation. will be in coming months
+- they will tell us how to fix when changes pulled into main pyrasterframes repo
+- **where do we get forked pyrasterframes?**
+    - in `bootstrap.sh` from terraform it pulls from geotrellis/rasterframes not locationtech which is mainline version
+    - `rasterframes_sha` in variables.tf is defined in variables.tf, specifies commit to use for rasterframes
+    - can make pulls to geotrellis/rasterframes so that we can use it
+- **in `build_feature_frame` frame.select builds features in build_feature_frame, value of 2 is hard coded to window size**
+    - `localNbhd0p` discards border region
+    - throws away 1/2 of the window size on the border
+    - `localNbhd0p` could take `buffer*2+1` instead of hardcoded 5 for window size
+    - operations documented in rasterframes code python docs coming in some months
+    - to make 7x7 neighborhood operation, would need to read in buffer of 3 instead of 2 in read_buffered_window and then change localNbhdop to 7 from 5. both erodePixels would bump up from 2 to 3
+    - recommendation for testing: look at tile dimensions in raster frames. if tile dims correct you got it correct
+    - `remap` names columns correctly to feature type
+- **features beyond map algebra like max and means may require adding to rasterframes**
+- **how difficult to add another data source like SRTM?**
+    - suggeston, start with gather_data
+    - where all img sources get combined together
+    - do additional join to join SRTM to the other features
+    - also can use img reading functions, like read_buffered_window, cna work with the SRTM if it is at reasonably close resolution
+    - may need to modify to deal with coarse SRTM vs high res Planet
+- **COGs and NN resampling**
+    - imgs must be stored as square chunks
+    - imgs written in pieces called segments (square chunks)
+    - COGs have optional multi-res pyramid, doesn't need to do work to show you img you are querying
+    - overviews only encountered when img not in native resolution
+    - we can see which resampling method looks better on rasterfoundry
+    - cubic not advised
+- **UDF is user defined spark function, needed to access probabilities, runs slower but doesn't matter too much for performance (justin was a bit unsure). used for firstelement instead of fitted.probability[0]**
+- rasterframes tile exploder takes rasterframe with rows of tiles to dataframe of floats or integers of what is contained in tile
+- rasterframe has column spatial key and tile key for rows
+- spatial key row index tile index and value at those indices dataframe
+- assemble is inverse of explode
+- rasterframes makes easy to use rasters in ML
+- GPS helps lubricate conversion from numpy array to Spark Dataframes
+- perform layout of raster layers andd
+- output final image catalog
+- geopyspark requires you to build spark conf object, pyspark builds it automatically. it has requirements for spark session. so doe srasterframes. this is why we use spark submit isntead of pyspark submit
+- some conf line in old not necessary, first 2 conf lines can go away
+- if we change rasterframes, --packages needs to change from custom implementation. this may get changed to mainline version
+- Justin will help us streamline this, will let us know if/when changes merged to mainline
+
